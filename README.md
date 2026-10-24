@@ -48,7 +48,7 @@ your machine.
 | Calibration mode | See the zones, drag pads around, tune sensitivity, save the layout |
 | Session features | Live hit counter (total + per pad) and a looping pattern recorder |
 | Status indicators | Camera, hands, audio and FPS are all reported live |
-| Fully offline | Model, WASM runtime and drum samples all ship with the project |
+| Fully offline | After one install-time download, the app needs no internet at all |
 
 ---
 
@@ -91,19 +91,26 @@ after `cd `.
 npm install
 ```
 
-This downloads Vite and the MediaPipe library (about 40 MB) and then runs
+This downloads Vite and the MediaPipe library (about 40 MB), and then runs
 `tools/setup-assets.mjs` automatically, which:
 
 - copies the MediaPipe WASM runtime from `node_modules` into `public/wasm/`,
-- confirms `public/models/hand_landmarker.task` is present.
+- downloads the hand-tracking model (`~7.5 MB`) into `public/models/` **once**.
 
-You should see:
+You should see something like:
 
 ```
 [setup-assets] copied 6 MediaPipe WASM files -> public/wasm/
-[setup-assets] hand_landmarker.task present.
+[setup-assets] fetching the hand model once (~7.5 MB)…
+[setup-assets] downloaded 7.5 MB -> public/models/hand_landmarker.task
 [setup-assets] all local assets ready — the app runs fully offline.
 ```
+
+> **This is the only step that needs the internet.** The model is a binary of
+> float16 weights that does not compress, so it is fetched once instead of being
+> committed. After this finishes you can unplug your network and everything
+> still works. If the download fails, run `node tools/setup-assets.mjs` again
+> once you are back online.
 
 > If PowerShell refuses to run `npm` with a script-execution error, run this
 > once and reopen the terminal:
@@ -237,7 +244,7 @@ airdrum-ai/
 ├── public/
 │   ├── sounds/                # kick/snare/hihat/tom/crash.wav + LICENSE.txt
 │   ├── models/
-│   │   └── hand_landmarker.task   # MediaPipe model (shipped, ~7.5 MB)
+│   │   └── hand_landmarker.task   # MediaPipe model, fetched on install (~7.5 MB)
 │   └── wasm/                  # MediaPipe runtime (created by npm install)
 ├── tests/                     # unit tests (node --test)
 │   ├── gestureDetection.test.mjs
@@ -342,17 +349,23 @@ the app itself.
 
 ## Offline use and network requirements
 
-The app is designed to run with **no internet connection**:
+Once `npm install` has finished, the app runs with **no internet connection at
+all**:
 
-- `public/models/hand_landmarker.task` (the hand model) ships in the repository.
-- `public/wasm/` is filled from `node_modules` on `npm install`, so the runtime
+- `public/wasm/` is filled from `node_modules` on install, so the WASM runtime
   always matches the installed MediaPipe version.
-- `public/sounds/` contains the five drum samples.
+- `public/models/hand_landmarker.task` is downloaded once on install and then
+  lives on your disk.
+- `public/sounds/` contains the five drum samples, generated locally.
 
-The only network access ever needed is the initial `npm install` (to fetch Vite
-and MediaPipe from npm). If `hand_landmarker.task` is ever deleted,
-`tools/setup-assets.mjs` downloads it once from Google's public MediaPipe
-storage — that is the only external URL the project knows about.
+Network is used in exactly two places, both at install time:
+
+1. `npm install` fetching Vite and MediaPipe from the npm registry.
+2. `tools/setup-assets.mjs` fetching the hand model (once) from Google's public
+   MediaPipe storage — the only external URL this project knows about.
+
+At runtime the app never makes a network request: your camera frames are
+processed by a local WASM model inside the browser.
 
 ---
 

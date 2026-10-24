@@ -12,15 +12,17 @@
  *    @mediapipe/tasks-vision version. A version mismatch is the classic cause
  *    of "the model loads but tracking does nothing".
  *
- * 2. Makes sure public/models/hand_landmarker.task is present. The model ships
- *    in the repository, so this is normally a no-op; if it is missing (e.g. it
- *    was deleted), we try to download it once and say so plainly.
+ * 2. Downloads public/models/hand_landmarker.task if it is not already there.
+ *    The model is a ~7.5 MB binary of float16 weights that does not compress,
+ *    so it is fetched once from Google's public MediaPipe storage rather than
+ *    committed. If the file is already present this step is skipped.
  *
- * After this has run, the app needs no internet connection at all.
+ * After this has run once, the app needs no internet connection at all.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -51,26 +53,51 @@ function copyWasm() {
 
 async function ensureModel() {
   if (fs.existsSync(MODEL_DEST) && fs.statSync(MODEL_DEST).size > 100000) {
-    console.log('[setup-assets] hand_landmarker.task present.');
+    console.log('[setup-assets] hand_landmarker.task already present.');
     return true;
   }
-  console.log('[setup-assets] hand_landmarker.task missing — downloading once (~7.5 MB)…');
+
+  console.log('[setup-assets] fetching the hand model once (~7.5 MB)…');
   fs.mkdirSync(path.dirname(MODEL_DEST), { recursive: true });
+
+  // Attempt 1: the built-in fetch (works on a normal home/office network).
   try {
     const res = await fetch(MODEL_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length < 100000) throw new Error('response was too small to be the model');
     fs.writeFileSync(MODEL_DEST, buf);
     console.log(`[setup-assets] downloaded ${(buf.length / 1048576).toFixed(1)} MB -> public/models/hand_landmarker.task`);
     return true;
   } catch (err) {
-    console.warn(
-      '[setup-assets] could not download the model: ' + err.message + '\n' +
-        '              Reconnect to the internet and run `node tools/setup-assets.mjs`,\n' +
-        '              or copy hand_landmarker.task into public/models/ manually.'
-    );
-    return false;
+    console.log(`[setup-assets] fetch did not work (${err.message}); trying curl…`);
   }
+
+  // Attempt 2: curl. Windows 10+ ships curl.exe, and curl honours the usual
+  // *_proxy environment variables, which Node's fetch does not.
+  const curl = spawnSync(
+    'curl',
+    ['-L', '--fail', '--silent', '--show-error', '-o', MODEL_DEST, MODEL_URL],
+    { stdio: ['ignore', 'ignore', 'inherit'] }
+  );
+  if (!curl.error && curl.status === 0 && fs.existsSync(MODEL_DEST) && fs.statSync(MODEL_DEST).size > 100000) {
+    const mb = (fs.statSync(MODEL_DEST).size / 1048576).toFixed(1);
+    console.log(`[setup-assets] downloaded ${mb} MB via curl -> public/models/hand_landmarker.task`);
+    return true;
+  }
+
+  // Attempt 3: give the user exact manual instructions.
+  const lines = [
+    '[setup-assets] could not download the hand model.',
+    '              This download is the only step that needs the internet.',
+    '              Reconnect, then run:',
+    '                node tools/setup-assets.mjs',
+    '              Or download this URL and save it as',
+    '              public/models/hand_landmarker.task :',
+    '                ' + MODEL_URL,
+  ];
+  console.warn(lines.join('\n'));
+  return false;
 }
 
 const wasmOk = copyWasm();

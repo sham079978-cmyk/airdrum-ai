@@ -9,6 +9,11 @@ dist/
 # @mediapipe/tasks-vision version).
 public/wasm/
 
+# MediaPipe hand model (~7.5 MB of float16 weights, does not compress).
+# Downloaded once by tools/setup-assets.mjs on `npm install`. Not committed
+# because it exceeds the GitHub API's request size limit for a single file.
+public/models/*.task
+
 # misc
 *.log
 npm-debug.log*
