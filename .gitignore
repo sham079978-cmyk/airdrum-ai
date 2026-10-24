@@ -1,0 +1,17 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# MediaPipe WASM runtime — copied in from node_modules by tools/setup-assets.mjs
+# on `npm install`, so it is not committed (it must match the installed
+# @mediapipe/tasks-vision version).
+public/wasm/
+
+# misc
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vite/

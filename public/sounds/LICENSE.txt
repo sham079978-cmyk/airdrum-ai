@@ -1,0 +1,34 @@
+Drum sample licensing — AirDrum AI
+==================================
+
+The five WAV files in this folder (kick.wav, snare.wav, hihat.wav, tom.wav,
+crash.wav) are NOT recordings of real drums and are NOT taken from any sample
+pack. They are synthesised from scratch by the script in this repository:
+
+    tools/generate_samples.py
+
+Each voice uses a distinct synthesis recipe (pitch-swept sine bodies, filtered
+noise bursts, high-passed metallic stacks, etc.), which is why the five sounds
+are clearly different from one another rather than variations of one hit.
+
+Because they are original computer-generated works produced by this project's
+own code, they carry no third-party rights:
+
+    License: CC0 1.0 Universal (Public Domain Dedication)
+    https://creativecommons.org/publicdomain/zero/1.0/
+
+You may use, modify, redistribute and sell them, with no attribution required.
+
+Regenerating them
+-----------------
+    python tools/generate_samples.py
+
+Requires Python 3 with numpy. Output is deterministic (a fixed random seed is
+used), so re-running produces byte-identical files.
+
+Replacing them with your own samples
+------------------------------------
+Drop your own files in here using the same names, and update the `sound` paths
+in src/drumMapping.js if you use different names. Keep the files small (they
+are decoded into memory at startup) and mono or stereo WAV/MP3/OGG all work.
+If you ship third-party samples, record their licence here.
